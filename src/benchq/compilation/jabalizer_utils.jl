@@ -3,7 +3,6 @@ using JSON
 
 ### ICM PART STARTS HERE
 
-
 function icm_input(filename)
     raw_circuit = JSON.parsefile(filename)
 
@@ -37,7 +36,7 @@ const debug_flag = Ref(true)
 function out_cnt(opcnt, prevcnt, tn, pt, t0)
     print("  Ops: $opcnt ($(opcnt-prevcnt)), ")
     print("elapsed: $(round((tn-t0)/60_000_000_000, digits=2)) min (")
-    println(round((tn-pt)/1_000_000_000, digits=2), " s)")
+    println(round((tn - pt) / 1_000_000_000, digits=2), " s)")
 end
 
 function map_qubits(num_qubits, icm_output)
@@ -59,16 +58,17 @@ end
 
 function prepare(num_qubits, qubit_map, icm_output)
     gate_map = Dict("I" => Jabalizer.Id,
-                    "H" => Jabalizer.H,
-                    "X" => Jabalizer.X,
-                    "Y" => Jabalizer.Y,
-                    "Z" => Jabalizer.Z,
-                    "CNOT" => Jabalizer.CNOT,
-                    "SWAP" => Jabalizer.SWAP,
-                    "S" => Jabalizer.P,
-                    "CZ" => Jabalizer.CZ)
-    
-    print("zero_state: ") ; @time state = zero_state(num_qubits)
+        "H" => Jabalizer.H,
+        "X" => Jabalizer.X,
+        "Y" => Jabalizer.Y,
+        "Z" => Jabalizer.Z,
+        "CNOT" => Jabalizer.CNOT,
+        "SWAP" => Jabalizer.SWAP,
+        "S" => Jabalizer.P,
+        "CZ" => Jabalizer.CZ)
+
+    print("zero_state: ")
+    @time state = zero_state(num_qubits)
 
     chkcnt = prevbits = prevop = opcnt = 0
     pt = t0 = time_ns()
@@ -95,26 +95,3 @@ function prepare(num_qubits, qubit_map, icm_output)
 
     state
 end
-
-print("Input ICM circuit\n\t")
-@time (n_qubits, circuit) = icm_input("icm_input_circuit.json")
-
-print("ICM compilation: qubits=$n_qubits, gates=$(length(circuit))\n\t")
-@time (icm_output, data_qubits_map) = icm_compile(circuit, n_qubits)
-
-print("Output ICM circuit\n\t")
-@time icm_output_circuit("icm_output.json", icm_output, data_qubits_map)
-
-print("Get total number of qubits\n\t")
-@time (n_qubits, qubit_map) = map_qubits(n_qubits, icm_output)
-
-print("Jabalizer state preparation: qubits=$n_qubits, gates=$(length(icm_output))\n\t")
-@time state = prepare(n_qubits, qubit_map, icm_output)
-
-print("Jabalizer graph generation: $n_qubits\n\t")
-@time (svec, op_seq) = graph_as_stabilizer_vector(state)
-
-print("Write Adjacency List: ")
-@time write_adjlist(svec, "adjacency_list.nxl")
-
-println("Jabalizer finished")

@@ -21,7 +21,7 @@ from pyLIQTR.QSP import gen_qsp as qspFuncs
 
 from benchq import BasicArchitectureModel
 from benchq.algorithms import get_qsp_circuit
-from benchq.compilation import get_algorithmic_graph, pyliqtr_transpile_to_clifford_t
+from benchq.compilation import get_circuit_graph, pyliqtr_transpile_to_clifford_t
 from benchq.problem_ingestion import get_vlasov_hamiltonian
 from benchq.resource_estimation.graph_compilation import (
     get_resource_estimations_for_graph,
@@ -60,7 +60,7 @@ def main():
         clifford_t_circuit = pyliqtr_transpile_to_clifford_t(
             circuit, synthesis_accuracy
         )
-        graph = get_algorithmic_graph(clifford_t_circuit)
+        graph = get_circuit_graph(clifford_t_circuit)
 
         # TA 2 part: model hardware resources
         architecture_model = BasicArchitectureModel(

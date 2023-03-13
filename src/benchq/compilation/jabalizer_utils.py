@@ -41,13 +41,13 @@ def _run_quietly(cmd: t.Sequence[str]):
     assert proc.returncode == 0, f"Running {cmd} returned error code: {proc.returncode}"
 
 
-def get_algorithmic_graph(circuit):
+def get_circuit_graph(circuit):
     n_qubits = circuit.n_qubits
     icm_input_circuit = translate_circuit_to_icm_input(circuit)
     icm_input_circuit.append(n_qubits)
 
     exec_path = pathlib.Path(__file__).parent.resolve()
-    exec_name = "jabalizer_wrapper.jl"
+    exec_name = "jabalizer_wrapper_circuit.jl"
 
     with open("icm_input_circuit.json", "w") as outfile:
         json.dump(icm_input_circuit, outfile)
@@ -58,6 +58,31 @@ def get_algorithmic_graph(circuit):
 
     return load_algorithmic_graph("adjacency_list.nxl")
 
+
+def get_program_graph(program):
+
+    exec_path = pathlib.Path(__file__).parent.resolve()
+    exec_name = "jabalizer_wrapper_program.jl"
+
+    for i, circuit in enumerate(program.subroutines):
+        n_qubits = circuit.n_qubits
+        icm_input_circuit = translate_circuit_to_icm_input(circuit)
+        icm_input_circuit.append(n_qubits)
+        with open(f"icm_input_circuit_for_step_{i}.json", "w") as outfile:
+            json.dump(icm_input_circuit, outfile)
+
+    program_info = {
+        "subroutine_sequence" : program.subroutine_sequence,
+        "n_subroutines" : len(program.subroutines),
+    }
+    with open(f"program_info.json", "w") as outfile:
+        json.dump(program_info, outfile)
+
+    julia_file = os.path.join(exec_path, exec_name)
+    # jl.evalfile(julia_file)
+    _run_quietly(["julia", julia_file])
+
+    return load_algorithmic_graph("adjacency_list.nxl")
 
 def translate_circuit_to_icm_input(circuit):
     icm_input_circuit = []

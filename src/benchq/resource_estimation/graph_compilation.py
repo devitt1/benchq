@@ -15,7 +15,7 @@ from orquestra.quantum.circuits import Circuit
 
 from benchq.vizualization_tools import plot_graph_state_with_measurement_steps
 
-from ..compilation import get_algorithmic_graph, pyliqtr_transpile_to_clifford_t
+from ..compilation import get_circuit_graph, pyliqtr_transpile_to_clifford_t
 from ..data_structures import QuantumProgram
 
 LOGGER = logging.getLogger(__name__)
@@ -201,7 +201,7 @@ def get_resource_estimations_for_program(
         clifford_t_circuit = pyliqtr_transpile_to_clifford_t(
             circuit, synthesis_accuracy=synthesis_error_budget
         )
-        graphs_list.append(get_algorithmic_graph(clifford_t_circuit))
+        graphs_list.append(get_circuit_graph(clifford_t_circuit))
         with open("icm_output.json", "r") as f:
             output_dict = json.load(f)
             data_qubits_map = output_dict["data_qubits_map"]
@@ -216,7 +216,6 @@ def get_resource_estimations_for_program(
         use_full_program_graph=use_full_program_graph,
         plot=plot,
     )
-
 
 def resource_estimations_for_subcomponents(
     graphs_list: List[nx.Graph],

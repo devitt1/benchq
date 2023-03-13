@@ -133,7 +133,9 @@ chromedriver
 
 # Files generated from ICM and Jabalizer
 icm_input_circuit.json
+icm_input_circuit_from_step_*.json
 icm_output.json
+program_steps.json
 adjacency_list.nxl
 avas_localized_orbitals.molden
 measurement_steps_plot.pdf

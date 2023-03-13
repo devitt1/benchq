@@ -9,7 +9,7 @@ from orquestra import sdk
 from orquestra.quantum.evolution import time_evolution
 
 from benchq import BasicArchitectureModel
-from benchq.compilation import get_algorithmic_graph, pyliqtr_transpile_to_clifford_t
+from benchq.compilation import get_circuit_graph, pyliqtr_transpile_to_clifford_t
 from benchq.problem_ingestion import (
     generate_jw_qubit_hamiltonian_from_mol_data,
     generate_mol_data_for_h_chain,
@@ -43,8 +43,8 @@ def transpile_to_clifford_t(circuit, synthesis_accuracy):
 
 
 @task_with_julia
-def get_algorithmic_graph_task(circuit):
-    return get_algorithmic_graph(circuit)
+def get_circuit_graph_task(circuit):
+    return get_circuit_graph(circuit)
 
 
 @standard_task
@@ -70,7 +70,7 @@ def hydrogen_workflow():
         circuit = time_evolution_task(operator, evolution_time)
 
         clifford_t_circuit = transpile_to_clifford_t(circuit, synthesis_accuracy)
-        graph = get_algorithmic_graph_task(clifford_t_circuit)
+        graph = get_circuit_graph_task(clifford_t_circuit)
         resource_estimates = get_resource_estimations_for_graph_task(
             graph, architecture_model, synthesis_accuracy
         )
@@ -104,7 +104,7 @@ def original_main():
         clifford_t_circuit = pyliqtr_transpile_to_clifford_t(
             circuit, synthesis_accuracy
         )
-        graph = get_algorithmic_graph(clifford_t_circuit)
+        graph = get_circuit_graph(clifford_t_circuit)
 
         # TA 2 part: model hardware resources
         architecture_model = BasicArchitectureModel(

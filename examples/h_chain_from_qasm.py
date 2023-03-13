@@ -18,7 +18,7 @@ import time
 from qiskit.circuit import QuantumCircuit
 
 from benchq import BasicArchitectureModel
-from benchq.compilation import get_algorithmic_graph, pyliqtr_transpile_to_clifford_t
+from benchq.compilation import get_circuit_graph, pyliqtr_transpile_to_clifford_t
 from benchq.resource_estimation.graph_compilation import (
     get_resource_estimations_for_graph,
 )
@@ -35,7 +35,7 @@ def main(file_name="circuits/h_chain_circuit.qasm"):
     clifford_t_circuit = pyliqtr_transpile_to_clifford_t(
         qiskit_circuit, synthesis_accuracy
     )
-    graph = get_algorithmic_graph(clifford_t_circuit)
+    graph = get_circuit_graph(clifford_t_circuit)
 
     # TA 2 part: model hardware resources
     architecture_model = BasicArchitectureModel(
