@@ -5,27 +5,78 @@ from ...compilation import (
     pyliqtr_transpile_to_clifford_t,
 )
 from ...compilation import simplify_rotations as _simplify_rotations
-from ...data_structures import QuantumProgram, get_program_from_circuit
+from ...data_structures import QuantumProgram, get_program_from_circuit, ErrorBudget
 from .structs import GraphPartition
+from orquestra.quantum.circuits import Circuit
 
 
-def synthesize_clifford_t(error_budget) -> Callable[[QuantumProgram], QuantumProgram]:
+def count_pauli_rotations(program: QuantumProgram):
+    """Counts the number of Pauli rotations in a program."""
+    rotation_gates_per_subroutine = [
+        _count_pauli_rot_gates(circuit) for circuit in program.subroutines
+    ]
+
+    total_number_of_r_gates = sum(
+        count * mult
+        for count, mult in zip(rotation_gates_per_subroutine, program.multiplicities)
+    )
+    return total_number_of_r_gates
+
+
+def _count_pauli_rot_gates(circuit: Circuit):
+    return sum(op.gate.name in ["RX", "RY", "RZ"] for op in circuit.operations)
+
+
+def _pauli_rot_gates_fraction_per_subroutine(program: QuantumProgram):
+    rotation_gates_per_subroutine = [
+        _count_pauli_rot_gates(circuit) for circuit in program.subroutines
+    ]
+
+    total_number_of_r_gates = sum(
+        count * mult
+        for count, mult in zip(rotation_gates_per_subroutine, program.multiplicities)
+    )
+    if total_number_of_r_gates == 0:
+        return [0] * len(rotation_gates_per_subroutine)
+    return [count / total_number_of_r_gates for count in rotation_gates_per_subroutine]
+
+
+def synthesize_clifford_t(
+    error_budget: ErrorBudget,
+) -> Callable[[QuantumProgram], QuantumProgram]:
+    """Returns function that synthesizes a Clifford T circuit from a given circuit.
+    The synthesis failure tolerance is specified using the ErrorBudget object for the
+    whole program.
+
+    Args:
+        error_budget: ErrorBudget object.
+
+    """
+
     def _transformer(program: QuantumProgram) -> QuantumProgram:
-        synthesis_error_budget = (
-            error_budget["synthesis_error_rate"] * error_budget["total_error"]
+        error_fractions_per_subroutine = _pauli_rot_gates_fraction_per_subroutine(
+            program
         )
-        circuits = [
-            pyliqtr_transpile_to_clifford_t(
-                circuit, circuit_precision=synthesis_error_budget
+        synthesized_circuits = []
+        for circuit, fraction in zip(
+            program.subroutines, error_fractions_per_subroutine
+        ):
+            synthesis_error_budget = error_budget.synthesis_failure_tolerance * fraction
+            synthesized_circuits.append(
+                pyliqtr_transpile_to_clifford_t(
+                    circuit, circuit_precision=synthesis_error_budget
+                )
             )
-            for circuit in program.subroutines
-        ]
-        return program.replace_circuits(circuits)
+        return program.replace_circuits(synthesized_circuits)
 
     return _transformer
 
 
 def simplify_rotations(program: QuantumProgram) -> QuantumProgram:
+    """Transforms a program by simplifying rotations in each subroutine.
+    RX an RY rotations are simplified to RZ rotations. Then RZ rotations which
+    can be expressed as simpler gates are removed.
+    """
     circuits = [_simplify_rotations(circuit) for circuit in program.subroutines]
     return QuantumProgram(
         circuits,
