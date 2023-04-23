@@ -77,16 +77,20 @@ class GraphResourceEstimator:
     # We are not sure if names below are the best choice
     # 21 comes from Game of surface codes (Litinski):
     # https://quantum-journal.org/papers/q-2019-03-05-128/
-    # We are not sure where does 12 come from
+    # Litinski box has a size of 21x11.  Extra row of surface code patches (11+1) needed to store the graph
     BOX_WIDTH = 21
     BOX_HEIGHT = 12
 
     # Assumes gridsynth scaling and full Euler angle decompositions
+    # 3 is coming from 3-Z rotations per arbitrary rotation, not sure about 4, that is the prefactor to log(1/epsilon) in gridsynth?
     SYNTHESIS_SCALING = 3 * 4
 
+    # logical error rate per sweep is p = 0.3*(70p)^(d+1)/2.  Failure of a unit cell is 1-(1-p)^distance for exact value.
+    # current code approximates 1-(1-p)^distance = distance * p, can break down when distace is large.
+    
     def _logical_cell_failure_rate(self, distance: int) -> float:
         return (
-            # 0.3 and 70 come from numerical simulations
+            # 0.3 and 70 come from numerical simulations - will be replaced with new decoder results from Aalto and Dallas
             distance
             * 0.3
             * (70 * self.hw_model.physical_gate_error_rate) ** ((distance + 1) / 2)
@@ -122,6 +126,11 @@ class GraphResourceEstimator:
         )
         return ec_error_rate
 
+    # this is not the best way to approximate this as when space/time volumes are large, you will get probabilities > 1.
+    # number should be 1-(1-p_L)^vol, where p_L is the logical cell failure rate and vol is the space time volume.  
+    # current code uses a taylor expansion to approximate 1-(1-p_L)^(vol) = vol*p_L.  This will be problematic when the 
+    # approximations of the Taylor expansion breaks down.
+    
     def _ec_error_rate(
         self, distance: int, n_nodes: int, max_graph_degree: int
     ) -> float:
@@ -156,6 +165,13 @@ class GraphResourceEstimator:
         it is 1/(12*N) smaller than circuit error rate, where N is the number of nodes
         in the graph.
         """
+        # this is probably hackey because of the approximations to probabilities used above.
+        # not sure I follow this.  We have the total space/time error rate (ec_error_rate), which gives the 
+        # rate in which the entire algorithmic execution will experience an error.  In gridsynth, we want to make
+        # sure our synthesis error is less than this number to ensure that a synthesis error occuring over the 
+        # entire computation is less than any failure caused by the error correction.  The total number of Nodes, N 
+        # gives us the total number of T-gates applied, hence the eps = synthesis_accuracy, 4log(1/eps) << 
+        
         current_synthesis_accuracy = INITIAL_SYNTHESIS_ACCURACY
         for _ in range(20):
             ec_error_rate = self._ec_error_rate(
@@ -163,6 +179,7 @@ class GraphResourceEstimator:
                 n_nodes,
                 max_graph_degree,
             )
+            # new_synthesis_accuracy = (1/volume)
             new_synthesis_accuracy = (1 / (12 * n_nodes)) * ec_error_rate
             # This is for cases where the algorithm diverges terribly, to avoid
             # "divide by 0" and similar warnings.
@@ -207,6 +224,7 @@ class GraphResourceEstimator:
         logical_cell_error_rate = self._logical_cell_failure_rate(code_distance)
 
         # Isolate differences between synthesized and not synthesized case
+        # again, 1-(1-logical_cell_error_rate)^space_time_volume is more accurate
         if not delayed_gate_synthesis:
             total_logical_error_rate = logical_cell_error_rate * space_time_volume
             synthesis_multiplier = 1
